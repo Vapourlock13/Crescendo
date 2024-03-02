@@ -75,7 +75,7 @@ class MyRobot(wpilib.TimedRobot):
 
 
 
-        Shooter.manual_aim(self.driver.getLeftY())
+        Shooter.unsafe_rotate(self.driver.getLeftY())
 
 
         if self.driver.getAButton():

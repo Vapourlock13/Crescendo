@@ -51,3 +51,8 @@ def set_to(angle: float) -> float:
 
     return speed
 
+def unsafe_rotate(amount):
+    left_pivot_motor.set(amount * pivot_speed)
+    right_pivot_motor.set(amount * pivot_speed)
+
+
