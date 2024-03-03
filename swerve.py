@@ -46,11 +46,18 @@ class Swerve:
 
         self.sd.putString("Swerve", "Ready")
 
-    def drive(self, driver):
+    def drive(self, driver, lime):
         #joystick inputs:
-        joy_y = -driver.getLeftY()                                      #Remove The Negatives
+        joy_y = -driver.getLeftY()                                      #Remove The Negatives?
         joy_x = -driver.getLeftX()
         turn = -driver.getRightX()
+
+        AButton = driver.getAButton()
+
+        #limelight
+        tx = lime.getNumber("tx", 0)
+        ty = lime.getNumber("ty", 0)
+        ta = lime.getNumber("ta", 0)
 
 
         self.sd.putNumber("BotAngle", self.navx.getYaw())
@@ -60,19 +67,30 @@ class Swerve:
         self.sd.putNumber("FL Angle", self.fl.current_angle)
         self.sd.putNumber("FR Angle", self.fr.current_angle)
 
-        if not driver.getRightBumper(): #Using Field orientation
-            # vectorize left joystick
-            ang, mag = self.Components_To_Vector(joy_x, joy_y)
+        #limelight
+        self.sd.putNumber("F_tx", tx)
+        self.sd.putNumber("F_ty", ty)
+        self.sd.putNumber("F_ta", ta)
 
+        # vectorize left joystick
+        ang, mag = self.Components_To_Vector(joy_x, joy_y)
+
+        if not AButton: #add whether limelight detects 'and tx == 0'
             # compensate for field orientation
             ang = clean_angle(ang + self.navx.getYaw())
 
-            # add rotation
-            x, y = self.Vector_To_Components(ang, mag)
+        # add rotation
+        x, y = self.Vector_To_Components(ang, mag)
+
+        if AButton and tx != 0: #comandeer the turn direction w/ limelight
+            if -4 < lime < 4: #when within center stop all rotation
+                turn = 0
+            else: #determines direction of rotation and is at a constant speed
+                turn = tx/-tx #
 
         turn_size = 0.0
         if turn < -0.05 or turn > 0.05:                                 ##Test if dead zone needed
-            turn_size = math.sqrt(2) * turn                             ##Get rid of the *sqrt
+            turn_size = .707 * turn                             ##Get rid of the *sqrt
 
         # fl
         fl_x = x + turn_size
@@ -121,7 +139,6 @@ class Swerve:
         self.fr.set_module(fr_ang, fr_mag)
         self.bl.set_module(bl_ang, bl_mag)
         self.br.set_module(br_ang, br_mag)
-
 
 
     def Report_Encoder_Positions(self):

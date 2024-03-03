@@ -6,35 +6,41 @@ intake_motor = rev.CANSparkMax(43, rev.CANSparkMax.MotorType.kBrushless)
 intake_motor.setInverted(True)
 index_motor = phoenix5.WPI_TalonFX(57)  # may need to be inverted
 index_motor.setInverted(True)
-#beam = wpilib.DigitalInput(2)
-
-
-
 
 intake_speed = .1
 feed_speed = .1
+index_state = "load"
 
+# def hey_hello ():
+# hey = hello.get()
+# hello = wpilib.DigitalInput(0).get()
+# return hello
 
-def hey_hello ():
-    #hey = hello.get()
-    hello = wpilib.DigitalInput(0).get()
-    return hello
-
-def init():
-     hi = wpilib.DigitalInput(0).get()
-
-
-
+# def init():
+# hi = wpilib.DigitalInput(0).get()
 
 
 def intake():
-    if True: #not beam.get():
+    '''
+    if index_state == "intake":
+        if wpilib.DigitalInput(9).get():
+            intake_motor.set(intake_speed)
+            index_motor.set(intake_speed)
+        else:
+            intake_motor.set(0)
+            intake_motor.set(0)
+            global index_state = "locked"
+    elif index_state == "locked":
+        ...
+    else:
+        ...
+    '''
+    if wpilib.DigitalInput(9).get():
         intake_motor.set(intake_speed)
         index_motor.set(intake_speed)
-    #else:
-        #intake_motor.set(0)
-        #index_motor.set(0)
-
+    else:
+        intake_motor.set(0)
+        index_motor.set(0)
 
 def feed():
     intake_motor.set(0.0)
@@ -50,6 +56,14 @@ def reload():
     intake_motor.set(0.0)
     index_motor.set(-0.1)
 
+
+def lockNload():
+    if not wpilib.DigitalInput(9).get():
+        intake_motor.set(-0.25)
+        index_motor.set(-0.25)
+    else:
+        stop()
+        return True
 
 
 """

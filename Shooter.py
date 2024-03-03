@@ -21,7 +21,9 @@ shooter_speed = 0.1
 
 
 def manual_aim(adjust_speed):
-
+    #if wpilib.DigitalInput(0).get():
+        #left_pivot_motor.set(0.0)
+        #right_pivot_motor.set(0.0)
     if (position() > 0.0  and adjust_speed < 0.0) or (position() < 135.0 and adjust_speed > 0.0):
         left_pivot_motor.set(adjust_speed * pivot_speed)
         right_pivot_motor.set(adjust_speed * pivot_speed)
@@ -51,8 +53,11 @@ def set_to(angle: float) -> float:
 
     return speed
 
-def unsafe_rotate(amount):
-    left_pivot_motor.set(amount * pivot_speed)
-    right_pivot_motor.set(amount * pivot_speed)
+#def OhCrap() -> bool:
+#    return wpilib.DigitalInput(0).get()
+
+#def unsafe_rotate(amount):
+    #left_pivot_motor.set(amount * pivot_speed)
+    #right_pivot_motor.set(amount * pivot_speed)
 
 
