@@ -4,10 +4,10 @@ import math
 import phoenix5.sensors
 
 # cancoder Absolute start values
-cancoder1_absolute_forward = 313.4 #133.4 #313.4 #148.8
-cancoder3_absolute_forward = 148.6 #328.6 #148.6 #263.5
-cancoder5_absolute_forward = 143.7 #323.7 #143.7 #323.96
-cancoder7_absolute_forward = 15.5 #195.5 #15.5 #195.58
+cancoder1_absolute_forward = 0 #133.4 #313.4 #148.8
+cancoder3_absolute_forward = 0 #328.6 #148.6 #263.5
+cancoder5_absolute_forward = 0 #323.7 #143.7 #323.96
+cancoder7_absolute_forward = 0 #195.5 #15.5 #195.58
 
 
 # Returns an angle in the bounds 0 to 360
@@ -48,11 +48,12 @@ class Swerve:
 
     def drive(self, driver, lime):
         #joystick inputs:
-        joy_y = -driver.getLeftY()                                      #Remove The Negatives?
-        joy_x = -driver.getLeftX()
-        turn = -driver.getRightX()
+        joy_y = driver.getLeftY()
+        joy_x = driver.getLeftX()
+        turn = driver.getRightX()
 
-        AButton = driver.getAButton()
+        #AButton = driver.getAButton()
+        LB = driver.getLeftBumper()
 
         #limelight
         tx = lime.getNumber("tx", 0)
@@ -75,18 +76,18 @@ class Swerve:
         # vectorize left joystick
         ang, mag = self.Components_To_Vector(joy_x, joy_y)
 
-        if not AButton: #add whether limelight detects 'and tx == 0'
+        if not LB: #add whether limelight detects 'and tx == 0'
             # compensate for field orientation
             ang = clean_angle(ang + self.navx.getYaw())
 
         # add rotation
         x, y = self.Vector_To_Components(ang, mag)
 
-        if AButton and tx != 0: #comandeer the turn direction w/ limelight
-            if -4 < lime < 4: #when within center stop all rotation
+        if LB and tx != 0: #comandeer the turn direction w/ limelight
+            if -4 < tx < 4: #when within center stop all rotation
                 turn = 0
             else: #determines direction of rotation and is at a constant speed
-                turn = tx/-tx #
+                turn = -tx/tx #
 
         turn_size = 0.0
         if turn < -0.05 or turn > 0.05:                                 ##Test if dead zone needed

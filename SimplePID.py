@@ -1,10 +1,11 @@
 class SimplePID:
 
-    def __init__ (self,kP: float, kI: float, kD: float, tolerance: float) -> None:
+    def __init__ (self,kP: float, kI: float, kD: float, tolerance: float, flip: bool = False) -> None:
         self.kP: float = kP
         self.kI: float = kI
         self.kD: float = kD
         self.tolerance: float = tolerance
+        self.flip = flip
 
         self.last_error: float = 0.0
         self.integral: float = 0.0
@@ -22,9 +23,8 @@ class SimplePID:
         self.integral += error * .02
         derivative = (error - self.last_error) / .02
 
-
-        # reset integral if within range
-        if -1.0 * self.tolerance < error <= self.tolerance:
+        # reset integral if within tolerance
+        if -1.0 * self.tolerance <= error <= self.tolerance:
             self.integral = 0.0
             self.last_error = 0.0
             speed = 0.0
@@ -34,5 +34,5 @@ class SimplePID:
             self.last_error = error
             speed = error * self.kP + self.integral * self.kI + derivative * self.kD
 
-        return speed
+        return speed if not self.flip else -1.0 * speed
 

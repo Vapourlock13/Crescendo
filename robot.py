@@ -20,14 +20,13 @@ class MyRobot(wpilib.TimedRobot):
         self.timer = wpilib.Timer()
         self.sd = ntcore.NetworkTableInstance.getDefault().getTable('SmartDashboard')
         self.navx = navx.AHRS.create_spi()
-        self.crap = wpilib.DigitalInput(1)
 
         #power on limelights
         wpilib.PowerDistribution().setSwitchableChannel(enabled=True)  # USE THIS FOR SWITCHABLE CHANNEL
 
         #Limelight table instances
-        self.limeF = ntcore.NetworkTableInstance.getDefault().getTable("limelight-intake")
-        self.limeB = ntcore.NetworkTableInstance.getDefault().getTable("limelight-shooter")
+        self.limeF = ntcore.NetworkTableInstance.getDefault().getTable("limelight-shooter")
+        self.limeB = ntcore.NetworkTableInstance.getDefault().getTable("limelight-intake")
 
         self.swerve = Swerve(self.sd, self.navx)
 
@@ -51,6 +50,9 @@ class MyRobot(wpilib.TimedRobot):
         self.sd.putNumber("Shooter Speed:", .1)
         self.sd.putNumber("Feed Speed", .8)
 
+        #Test
+        #self.climber = phoenix5.WPI_TalonFX(54) #Positive winds, Negative extends
+
 
     def teleopInit(self):
         self.timer.reset()
@@ -59,6 +61,7 @@ class MyRobot(wpilib.TimedRobot):
 
         II.intake_speed = self.sd.getNumber("Intake Speed:", .1)
         II.feed_speed = self.sd.getNumber("Feed Speed", .8)
+        II.index_state = "intake"
 
         Shooter.shooter_speed = self.sd.getNumber("Shooter Speed:", .1)
         Shooter.pivot_speed = self.sd.getNumber("Pivot Speed:", .1)
@@ -81,8 +84,6 @@ class MyRobot(wpilib.TimedRobot):
 
 
         #Shooter.manual_aim(self.driver.getLeftY())
-        #Shooter.unsafe_rotate(self.driver.getLeftY())
-
 
         if self.driver.getAButton():
             II.intake()
@@ -101,6 +102,10 @@ class MyRobot(wpilib.TimedRobot):
             #self.shooterB.set(0)
 
 
+        #Climber test
+        #self.climber.set(self.driver.getLeftY() * 0.1)
+
+
 
         # display limelight positions
         if self.timer.hasElapsed(0.5):
@@ -116,7 +121,12 @@ class MyRobot(wpilib.TimedRobot):
 
             self.sd.putNumber("BotAngle",self.navx.getYaw())
 
-            self.sd.putBoolean("OhCrapSwitch", self.crap.get())
+            self.sd.putString("Index Stage", II.index_state)
+
+            self.sd.putBoolean("Shooter Ready", II.index_state == "loaded")
+
+            self.sd.putNumber("tx", self.limeF.getNumber("tx", 0))
+            self.sd.putNumber("B_tx", self.limeB.getNumber("tx", 1))
 
             #self.sd.putBoolean("Limelights", wpilib.PowerDistribution.getSwitchableChannel())
 

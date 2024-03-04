@@ -9,7 +9,8 @@ index_motor.setInverted(True)
 
 intake_speed = .1
 feed_speed = .1
-index_state = "load"
+index_state = "intake"  #In real comp: "load"
+
 
 # def hey_hello ():
 # hey = hello.get()
@@ -21,7 +22,8 @@ index_state = "load"
 
 
 def intake():
-    '''
+    global index_state
+
     if index_state == "intake":
         if wpilib.DigitalInput(9).get():
             intake_motor.set(intake_speed)
@@ -29,20 +31,21 @@ def intake():
         else:
             intake_motor.set(0)
             intake_motor.set(0)
-            global index_state = "locked"
+            index_state = "locked"
+
     elif index_state == "locked":
-        ...
-    else:
-        ...
-    '''
-    if wpilib.DigitalInput(9).get():
-        intake_motor.set(intake_speed)
-        index_motor.set(intake_speed)
+        intake_motor.set(-0.25)
+        index_motor.set(-0.25)
+        if wpilib.DigitalInput(9).get():
+            index_state = "loaded"
     else:
         intake_motor.set(0)
         index_motor.set(0)
 
+
 def feed():
+    global index_state
+    index_state = "intake"
     intake_motor.set(0.0)
     index_motor.set(feed_speed)
 
@@ -56,14 +59,6 @@ def reload():
     intake_motor.set(0.0)
     index_motor.set(-0.1)
 
-
-def lockNload():
-    if not wpilib.DigitalInput(9).get():
-        intake_motor.set(-0.25)
-        index_motor.set(-0.25)
-    else:
-        stop()
-        return True
 
 
 """
