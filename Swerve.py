@@ -4,10 +4,10 @@ import math
 import phoenix5.sensors
 
 # cancoder Absolute start values
-cancoder1_absolute_forward = 0 #133.4 #313.4 #148.8
-cancoder3_absolute_forward = 0 #328.6 #148.6 #263.5
-cancoder5_absolute_forward = 0 #323.7 #143.7 #323.96
-cancoder7_absolute_forward = 0 #195.5 #15.5 #195.58
+cancoder1_absolute_forward = 0.0  # 133.4 #313.4 #148.8
+cancoder3_absolute_forward = 0.0  # 328.6 #148.6 #263.5
+cancoder5_absolute_forward = 0.0  # 323.7 #143.7 #323.96
+cancoder7_absolute_forward = 0.0  # 195.5 #15.5 #195.58
 
 
 # Returns an angle in the bounds 0 to 360
@@ -34,8 +34,8 @@ class Swerve:
         self.sd = sd
         self.navx = navx
 
-        self.fr = Module(1, cancoder1_absolute_forward, 1, 42, sd, turn_flip=True) #Reversed turning motor
-        self.fl = Module(3, cancoder3_absolute_forward, 3, 44, sd, drive_flip=True, turn_flip=True) #Reversed motors
+        self.fr = Module(1, cancoder1_absolute_forward, 1, 42, sd, turn_flip=True)  # Reversed turning motor
+        self.fl = Module(3, cancoder3_absolute_forward, 3, 44, sd, drive_flip=True, turn_flip=True)  # Reversed motors
         self.bl = Module(5, cancoder5_absolute_forward, 5, 46, sd)
         self.br = Module(7, cancoder7_absolute_forward, 2, 48, sd)
 
@@ -46,74 +46,40 @@ class Swerve:
 
         self.sd.putString("Swerve", "Ready")
 
-    def drive(self, driver, lime):
-        #joystick inputs:
-        joy_y = driver.getLeftY()
-        joy_x = driver.getLeftX()
-        turn = driver.getRightX()
-
-        #AButton = driver.getAButton()
-        LB = driver.getLeftBumper()
-
-        #limelight
-        tx = lime.getNumber("tx", 0)
-        ty = lime.getNumber("ty", 0)
-        ta = lime.getNumber("ta", 0)
-
-
-        self.sd.putNumber("BotAngle", self.navx.getYaw())
-        self.sd.putNumber("y", joy_y)
-        self.sd.putNumber("x", joy_x)
-        self.sd.putNumber("turn", turn)
-        self.sd.putNumber("FL Angle", self.fl.current_angle)
-        self.sd.putNumber("FR Angle", self.fr.current_angle)
-
-        #limelight
-        self.sd.putNumber("F_tx", tx)
-        self.sd.putNumber("F_ty", ty)
-        self.sd.putNumber("F_ta", ta)
-
+    def field_orientate(self, x: float, y: float) -> (float, float):
         # vectorize left joystick
-        ang, mag = self.Components_To_Vector(joy_x, joy_y)
+        ang, mag = self.Components_To_Vector(x, y)
 
-        if not LB: #add whether limelight detects 'and tx == 0'
-            # compensate for field orientation
-            ang = clean_angle(ang + self.navx.getYaw())
+        # compensate for field orientation
+        ang = clean_angle(ang + self.navx.getYaw())
 
-        # add rotation
-        x, y = self.Vector_To_Components(ang, mag)
+        # return components
+        return self.Vector_To_Components(ang, mag)
 
-        if LB and tx != 0: #comandeer the turn direction w/ limelight
-            if -4 < tx < 4: #when within center stop all rotation
-                turn = 0
-            else: #determines direction of rotation and is at a constant speed
-                turn = -tx/tx #
+    def drive(self, x, y, turn, field_orientation = True):
+
+        # self.sd.putNumber("BotAngle", self.navx.getYaw())
+        # self.sd.putNumber("y", y)
+        # self.sd.putNumber("x", x)
+        # self.sd.putNumber("turn", turn)
+        # self.sd.putNumber("FL Angle", self.fl.current_angle)
+        # self.sd.putNumber("FR Angle", self.fr.current_angle)
+
+        if field_orientation:
+            x, y = self.field_orientate(x, y)
 
         turn_size = 0.0
-        if turn < -0.05 or turn > 0.05:                                 ##Test if dead zone needed
-            turn_size = .707 * turn                             ##Get rid of the *sqrt
+        if turn < -0.05 or turn > 0.05:  ##Test if dead zone needed
+            turn_size = .707 * turn  ##Get rid of the *sqrt
 
-        # fl
-        fl_x = x + turn_size
-        fl_y = y - turn_size
-        fl_ang, fl_mag = self.Components_To_Vector(fl_x, fl_y)
+        #
+        fl_ang, fl_mag = self.Components_To_Vector(x + turn_size, y - turn_size)
+        fr_ang, fr_mag = self.Components_To_Vector(x + turn_size, y + turn_size)
+        bl_ang, bl_mag = self.Components_To_Vector(x - turn_size, y - turn_size)
+        br_ang, br_mag = self.Components_To_Vector(x - turn_size, y + turn_size)
 
-        # fr
-        fr_x = x + turn_size
-        fr_y = y + turn_size
-        fr_ang, fr_mag = self.Components_To_Vector(fr_x, fr_y)
 
-        # bl
-        bl_x = x - turn_size
-        bl_y = y - turn_size
-        bl_ang, bl_mag = self.Components_To_Vector(bl_x, bl_y)
-
-        # br
-        br_x = x - turn_size
-        br_y = y + turn_size
-        br_ang, br_mag = self.Components_To_Vector(br_x, br_y)
-
-        # Normalize the vectors if needed / vectors in standard pos?
+        # Normalize the vectors if needed
         max_mag = max(fl_mag, fr_mag, bl_mag, br_mag)
         if max_mag > 1.0:
             fl_mag /= max_mag
@@ -135,11 +101,21 @@ class Swerve:
             self.last_bl_ang = bl_ang
             self.last_br_ang = br_ang
         """
+        if fl_mag == 0.0: fl_ang = self.last_fl_ang
+        if fr_mag == 0.0: fr_ang = self.last_fl_ang
+        if bl_mag == 0.0: bl_ang = self.last_fl_ang
+        if br_mag == 0.0: br_ang = self.last_fl_ang
+
 
         self.fl.set_module(fl_ang, fl_mag)
         self.fr.set_module(fr_ang, fr_mag)
         self.bl.set_module(bl_ang, bl_mag)
         self.br.set_module(br_ang, br_mag)
+
+        self.last_fl_ang = fl_ang
+        self.last_fr_ang = fr_ang
+        self.last_bl_ang = bl_ang
+        self.last_br_ang = br_ang
 
 
     def Report_Encoder_Positions(self):
@@ -182,7 +158,7 @@ class Swerve:
         return ang, mag
 
 
-class Module: # sets up each module
+class Module:  # sets up each module
     def __init__(self, encoder_id, abs_forward, drive_id, turn_id, sd, turn_flip=False, drive_flip=False):
         self._encoder_id = encoder_id
         self._encoder_abs_forward = abs_forward
@@ -204,9 +180,9 @@ class Module: # sets up each module
         self.sd.putNumber("current", self.current_angle)
 
         angle_diff = angle - self.current_angle
-            
+
         if angle_diff < -90.0 or angle_diff > 90:
-            angle = clean_angle(angle) #removed + 180
+            angle = clean_angle(angle)  # removed + 180
             speed *= -1.0
 
         turn_speed = self._turn_con.Rot_Velocity(angle, self.current_angle)
@@ -220,6 +196,7 @@ class Module: # sets up each module
     @property
     def current_angle(self):
         return self.encoder.getAbsolutePosition() - self._encoder_abs_forward
+
     @property
     def encoder_position(self):
         return self.encoder.getAbsolutePosition()

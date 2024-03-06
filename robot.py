@@ -7,10 +7,11 @@ import rev
 
 import II
 import Shooter
+import Climber
 
 
 
-from swerve import Swerve
+from Swerve import Swerve
 
 
 class MyRobot(wpilib.TimedRobot):
@@ -25,8 +26,8 @@ class MyRobot(wpilib.TimedRobot):
         wpilib.PowerDistribution().setSwitchableChannel(enabled=True)  # USE THIS FOR SWITCHABLE CHANNEL
 
         #Limelight table instances
-        self.limeF = ntcore.NetworkTableInstance.getDefault().getTable("limelight-shooter")
-        self.limeB = ntcore.NetworkTableInstance.getDefault().getTable("limelight-intake")
+        self.limeF = ntcore.NetworkTableInstance.getDefault().getTable("limelight-intake")
+        self.limeB = ntcore.NetworkTableInstance.getDefault().getTable("limelight-shooter")
 
         self.swerve = Swerve(self.sd, self.navx)
 
@@ -35,20 +36,14 @@ class MyRobot(wpilib.TimedRobot):
         self.shotgun = wpilib.XboxController(1)
 
 
-        #self.pivotL = phoenix5.WPI_TalonFX(52) # Set these into brake mode!
-        #self.pivotR = phoenix5.WPI_TalonFX(51) #
-        #self.pivotR.setInverted(True)
-
-        #self.shooterB = rev.CANSparkFlex(4, rev.CANSparkFlex.MotorType.kBrushless)
-        #self.shooterT = rev.CANSparkFlex(6, rev.CANSparkFlex.MotorType.kBrushless)
-        #self.shooterT.setInverted(True)
-
         #self.beaam = wpilib.DigitalInput(9)
 
         self.sd.putNumber("Intake Speed:", .1)
         self.sd.putNumber("Pivot Speed:", .1)
         self.sd.putNumber("Shooter Speed:", .1)
         self.sd.putNumber("Feed Speed", .8)
+
+        Climber.zero_encoders()
 
         #Test
         #self.climber = phoenix5.WPI_TalonFX(54) #Positive winds, Negative extends
@@ -64,26 +59,49 @@ class MyRobot(wpilib.TimedRobot):
         II.index_state = "intake"
 
         Shooter.shooter_speed = self.sd.getNumber("Shooter Speed:", .1)
-        Shooter.pivot_speed = self.sd.getNumber("Pivot Speed:", .1)
+
+        Shooter.auto_max_pivot_speed = self.sd.getNumber("Pivot Speed:", .1)
+        Shooter.pivot_PID.tolerance = self.sd.getNumber("Pivot Tolerance", 1.0)
+        Shooter.pivot_PID.kP = self.sd.getNumber("kP", .005)
+        Shooter.pivot_PID.kI = self.sd.getNumber("kI",0.0)
+        Shooter.targetA = self.sd.getNumber("Target A", 30.0)
+        Shooter.targetB = self.sd.getNumber("Target B", 60.0)
+        Shooter.targetX = self.sd.getNumber("Target X", 100.0)
+        """
+        self.sd.putNumber("Pivot Speed:", .1)
+        self.sd.putNumber("kP", .005)
+        self.sd.putNumber("kI", 0.0)
+        self.sd.putNumber("Target A", 30.0)
+        self.sd.putNumber("Target B", 60.0)
+        self.sd.putNumber("Target X", 100.0)
+        self.sd.putNumber("Pivot Tolerance", 1.0)
+        """
 
 
 
     def teleopPeriodic(self):
-        # grab limelight positions
-        #tx = self.lime.getNumber("tx", 2)
-        #ty = self.lime.getNumber("ty", 2)
-        #ta = self.lime.getNumber("ta", 2)
-
+        """
         # Main Drive functions and encoder reporting
-        self.swerve.drive(self.driver, self.limeF)
+        if(self.driver.getLeftBumper()):
+            self.swerve.drive(self.driver.getLeftX(), self.driver.getLeftY(), self.note_aim(), field_orientation = False)
+        else:
+            if not self.driver.getYButton(): #temp
+                self.swerve.drive(self.driver.getLeftX(), self.driver.getLeftY(),self.driver.getRightX())
+
         self.swerve.Report_Encoder_Positions()
 
         #Pivot Controls
-        #self.pivotL.set(self.driver.getLeftY() * pivot_speed)
-        #self.pivotR.set(self.driver.getLeftY() * pivot_speed)
+
+        if self.shotgun.getYButton(): #temp
+            if self.driver.getXButton():
+                Shooter.set_to(30.0)
+            else:
+                Shooter.manual_aim(self.shotgun.getRightY())
+        else:
+            Shooter.manual_aim(0)
 
 
-        #Shooter.manual_aim(self.driver.getLeftY())
+        Shooter.manual_aim(self.shotgun.getRightY())
 
         if self.driver.getAButton():
             II.intake()
@@ -101,15 +119,28 @@ class MyRobot(wpilib.TimedRobot):
             #self.shooterT.set(0)
             #self.shooterB.set(0)
 
-
+        """
         #Climber test
         #self.climber.set(self.driver.getLeftY() * 0.1)
+        self.sd.putNumber("Encoder",Climber.climb(self.shotgun.getLeftY()))
+
+        if self.shotgun.getAButton():
+            Shooter.set_to(Shooter.targetA)
+        elif self.shotgun.getBButton():
+            Shooter.set_to(Shooter.targetB)
+        elif self.shotgun.getXButton():
+            Shooter.set_to(Shooter.targetX)
+        else:
+            Shooter.manual_aim()
 
 
 
         # display limelight positions
         if self.timer.hasElapsed(0.5):
-            self.sd.putNumber("Left Y Stick", self.driver.getLeftY())
+            self.sd.putNumber("Left Y Stick", self.shotgun.getLeftY())
+            self.sd.putNumber("Pivot position", Shooter.position())
+
+
 
             #self.sd.putNumber("tx", tx)
             #self.sd.putNumber("ty", ty)
@@ -117,18 +148,23 @@ class MyRobot(wpilib.TimedRobot):
 
             #self.sd.putBoolean("Beam Break", self.beaam.get())
 
-            self.sd.putNumber("Pivot", Shooter.position())
+            # self.sd.putNumber("Pivot", Shooter.position())
 
-            self.sd.putNumber("BotAngle",self.navx.getYaw())
+            # self.sd.putNumber("BotAngle",self.navx.getYaw())
 
-            self.sd.putString("Index Stage", II.index_state)
+            # self.sd.putString("Index Stage", II.index_state)
 
-            self.sd.putBoolean("Shooter Ready", II.index_state == "loaded")
+            # self.sd.putBoolean("Shooter Ready", II.index_state == "loaded")
 
-            self.sd.putNumber("tx", self.limeF.getNumber("tx", 0))
-            self.sd.putNumber("B_tx", self.limeB.getNumber("tx", 1))
+            # self.sd.putNumber("tx", self.limeF.getNumber("tx", 0))
+
+            # self.sd.putNumber("B_tx", self.limeB.getNumber("tx", 0))
 
             #self.sd.putBoolean("Limelights", wpilib.PowerDistribution.getSwitchableChannel())
+
+    def note_aim(self) -> float:
+        tx = self.limeF.getNumber("tx", 0)
+        return 0 if -3 < tx < 3 else tx/abs(tx) * 0.5
 
 
 
