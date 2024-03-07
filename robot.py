@@ -60,6 +60,8 @@ class MyRobot(wpilib.TimedRobot):
 
         Shooter.shooter_speed = self.sd.getNumber("Shooter Speed:", .1)
 
+        """
+        Pivot PID setup
         Shooter.auto_max_pivot_speed = self.sd.getNumber("Pivot Speed:", .1)
         Shooter.pivot_PID.tolerance = self.sd.getNumber("Pivot Tolerance", 1.0)
         Shooter.pivot_PID.kP = self.sd.getNumber("kP", .005)
@@ -67,7 +69,7 @@ class MyRobot(wpilib.TimedRobot):
         Shooter.targetA = self.sd.getNumber("Target A", 30.0)
         Shooter.targetB = self.sd.getNumber("Target B", 60.0)
         Shooter.targetX = self.sd.getNumber("Target X", 100.0)
-        """
+        
         self.sd.putNumber("Pivot Speed:", .1)
         self.sd.putNumber("kP", .005)
         self.sd.putNumber("kI", 0.0)
@@ -80,6 +82,22 @@ class MyRobot(wpilib.TimedRobot):
 
 
     def teleopPeriodic(self):
+
+        # Shotgun Controls
+        # UNSAFE MODE WHEN A IS HELD
+        if self.shotgun.getAButton():
+            Climber.unsafe_climb(self.shotgun.getLeftY(),self.shotgun.getRightY())
+            Shooter.unsafe_rotate(self.shotgun.getLeftTriggerAxis() - self.shotgun.getRightTriggerAxis())
+
+        # NORMAL MODE
+        else:
+            Climber.climb(self.remap_stick(self.shotgun.getLeftY(),.25),
+                      (self.remap_stick(self.shotgun.getRightY(), .25)))
+
+
+
+
+
         """
         # Main Drive functions and encoder reporting
         if(self.driver.getLeftBumper()):
@@ -122,8 +140,10 @@ class MyRobot(wpilib.TimedRobot):
         """
         #Climber test
         #self.climber.set(self.driver.getLeftY() * 0.1)
-        self.sd.putNumber("Encoder",Climber.climb(self.shotgun.getLeftY()))
 
+
+        """"
+        # used for pivot PID control
         if self.shotgun.getAButton():
             Shooter.set_to(Shooter.targetA)
         elif self.shotgun.getBButton():
@@ -132,39 +152,36 @@ class MyRobot(wpilib.TimedRobot):
             Shooter.set_to(Shooter.targetX)
         else:
             Shooter.manual_aim()
-
+        """
 
 
         # display limelight positions
         if self.timer.hasElapsed(0.5):
-            self.sd.putNumber("Left Y Stick", self.shotgun.getLeftY())
             self.sd.putNumber("Pivot position", Shooter.position())
+            self.sd.putNumber("Left Climber", Climber.position('L'))
+            # self.sd.putNumber("Right Climber", Climber.position('R'))
 
-
-
-            #self.sd.putNumber("tx", tx)
-            #self.sd.putNumber("ty", ty)
-            #self.sd.putNumber("ta", ta)
-
-            #self.sd.putBoolean("Beam Break", self.beaam.get())
-
+            # self.sd.putNumber("Left Y Stick", self.shotgun.getLeftY())
+            # self.sd.putNumber("Remapped Y", self.remap_stick(self.shotgun.getLeftY(), 0.25))
+            # self.sd.putNumber("tx", tx)
+            # self.sd.putNumber("ty", ty)
+            # self.sd.putNumber("ta", ta)
+            # self.sd.putBoolean("Beam Break", self.beaam.get())
             # self.sd.putNumber("Pivot", Shooter.position())
-
             # self.sd.putNumber("BotAngle",self.navx.getYaw())
-
             # self.sd.putString("Index Stage", II.index_state)
-
             # self.sd.putBoolean("Shooter Ready", II.index_state == "loaded")
-
             # self.sd.putNumber("tx", self.limeF.getNumber("tx", 0))
-
             # self.sd.putNumber("B_tx", self.limeB.getNumber("tx", 0))
-
-            #self.sd.putBoolean("Limelights", wpilib.PowerDistribution.getSwitchableChannel())
+            # self.sd.putBoolean("Limelights", wpilib.PowerDistribution.getSwitchableChannel())
 
     def note_aim(self) -> float:
         tx = self.limeF.getNumber("tx", 0)
         return 0 if -3 < tx < 3 else tx/abs(tx) * 0.5
+
+
+    def remap_stick(self, value: float, deadzone: float) -> float:
+        return 0.0 if abs(value) < deadzone else value/abs(value) * (abs(value) - deadzone)/(1-deadzone)
 
 
 

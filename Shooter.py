@@ -11,11 +11,15 @@ right_pivot_motor.setInverted(True)
 manual_max_pivot_speed = 0.1
 auto_max_pivot_speed = 0.1
 
-pivot_PID = SimplePID(.005, 0.0, 0.0, 1.0)
+pivot_PID = SimplePID(.06, 0.004, 0.0, 0.25)
 
 bottom_shooter = rev.CANSparkFlex(4, rev.CANSparkFlex.MotorType.kBrushless)
+bottom_PID =  bottom_shooter.getPIDController()
+bottom_encoder = bottom_shooter.getEncoder()
 top_shooter = rev.CANSparkFlex(6, rev.CANSparkFlex.MotorType.kBrushless)
 top_shooter.setInverted(True)
+top_PID = top_shooter.getPIDController()
+top_encoder = top_shooter.getEncoder()
 shooter_speed = 0.1
 
 targetA = 0.0
@@ -63,6 +67,6 @@ def set_to(angle: float) -> float:
 
     return speed
 
-def unsafe_rotate(amount):
+def unsafe_rotate(amount: float):
     left_pivot_motor.set(amount * manual_max_pivot_speed)
     right_pivot_motor.set(amount * manual_max_pivot_speed)

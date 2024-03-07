@@ -34,8 +34,8 @@ class Swerve:
         self.sd = sd
         self.navx = navx
 
-        self.fr = Module(1, cancoder1_absolute_forward, 1, 42, sd, turn_flip=True)  # Reversed turning motor
         self.fl = Module(3, cancoder3_absolute_forward, 3, 44, sd, drive_flip=True, turn_flip=True)  # Reversed motors
+        self.fr = Module(1, cancoder1_absolute_forward, 1, 42, sd, turn_flip=True)  # Reversed turning motor
         self.bl = Module(5, cancoder5_absolute_forward, 5, 46, sd)
         self.br = Module(7, cancoder7_absolute_forward, 2, 48, sd)
 
@@ -68,9 +68,9 @@ class Swerve:
         if field_orientation:
             x, y = self.field_orientate(x, y)
 
-        turn_size = 0.0
-        if turn < -0.05 or turn > 0.05:  ##Test if dead zone needed
-            turn_size = .707 * turn  ##Get rid of the *sqrt
+        # turn_size = 0.0
+        # if turn < -0.05 or turn > 0.05:  ##Test if dead zone needed
+        turn_size = .707 * turn  ##Get rid of the *sqrt
 
         #
         fl_ang, fl_mag = self.Components_To_Vector(x + turn_size, y - turn_size)
