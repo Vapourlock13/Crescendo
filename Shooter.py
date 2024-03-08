@@ -3,6 +3,8 @@ import rev
 import phoenix5.sensors
 from SimplePID import SimplePID
 
+MAX_RPM = 6000
+
 encoder = phoenix5.sensors.CANCoder(9)
 
 left_pivot_motor = phoenix5.WPI_TalonFX(52)  # Set these into brake mode!
@@ -42,10 +44,14 @@ def manual_aim(adjust_speed: float = 0.0):
 def position():
     return encoder.getAbsolutePosition()
 
+def current_speed():
+    return bottom_encoder.getVelocity()
 
-def run():
-    top_shooter.set(shooter_speed)
-    bottom_shooter.set(shooter_speed)
+
+def run( gunspeed = shooter_speed):
+    top_shooter.set(gunspeed)
+    bottom_shooter.set(gunspeed)
+
 
 
 def stop():

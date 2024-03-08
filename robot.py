@@ -86,17 +86,37 @@ class MyRobot(wpilib.TimedRobot):
         # Shotgun Controls
         # UNSAFE MODE WHEN A IS HELD
         if self.shotgun.getAButton():
-            Climber.unsafe_climb(self.shotgun.getLeftY(),self.shotgun.getRightY())
             Shooter.unsafe_rotate(self.shotgun.getLeftTriggerAxis() - self.shotgun.getRightTriggerAxis())
 
         # NORMAL MODE
         else:
-            Climber.climb(self.remap_stick(self.shotgun.getLeftY(),.25),
-                      (self.remap_stick(self.shotgun.getRightY(), .25)))
+            Shooter.manual_aim(self.shotgun.getLeftTriggerAxis() - self.shotgun.getRightTriggerAxis())
+            # Climber.climb(self.remap_stick(self.shotgun.getLeftY(),0.2), self.remap_stick(self.shotgun.getRightY(), 0.2))
+            Climber.unsafe_climb(self.shotgun.getLeftY(),self.shotgun.getRightY())
 
 
 
 
+        # Driver Controls
+        x = self.remap_stick(self.driver.getLeftX(), 0.1)
+        y = self.remap_stick(self.driver.getLeftY(), 0.1)
+        turn = self.remap_stick(self.driver.getRightX(), 0.1)
+
+
+        if self.driver.getLeftBumper():
+            self.swerve.drive(x, y, turn, field_orientation=False)
+        else:
+            self.swerve.drive(x, y, turn)
+
+        #TEMPORARY
+        if self.driver.getAButton():
+            II.intake()
+        elif self.driver.getBButton():
+            II.feed()
+        else:
+            II.stop()
+
+        Shooter.run(self.driver.getRightTriggerAxis()) #self.driver.getRightY()
 
         """
         # Main Drive functions and encoder reporting
@@ -137,12 +157,7 @@ class MyRobot(wpilib.TimedRobot):
             #self.shooterT.set(0)
             #self.shooterB.set(0)
 
-        """
-        #Climber test
-        #self.climber.set(self.driver.getLeftY() * 0.1)
-
-
-        """"
+    
         # used for pivot PID control
         if self.shotgun.getAButton():
             Shooter.set_to(Shooter.targetA)
@@ -159,6 +174,11 @@ class MyRobot(wpilib.TimedRobot):
         if self.timer.hasElapsed(0.5):
             self.sd.putNumber("Pivot position", Shooter.position())
             self.sd.putNumber("Left Climber", Climber.position('L'))
+            self.sd.putNumber("Right Climber", Climber.pos2())
+            self.sd.putNumber("Shooter Speed", Shooter.current_speed())
+
+            self.swerve.Report_Encoder_Positions()
+
             # self.sd.putNumber("Right Climber", Climber.position('R'))
 
             # self.sd.putNumber("Left Y Stick", self.shotgun.getLeftY())

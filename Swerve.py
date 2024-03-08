@@ -3,6 +3,8 @@ import ntcore
 import math
 import phoenix5.sensors
 
+SPEED_LIMIT = 0.2
+
 # cancoder Absolute start values
 cancoder1_absolute_forward = 0.0  # 133.4 #313.4 #148.8
 cancoder3_absolute_forward = 0.0  # 328.6 #148.6 #263.5
@@ -28,6 +30,38 @@ def dirty_angle(angle):
     return angle
 
 
+# Converts a Vector into its constituent components
+def Vector_To_Components(ang: float, mag: float) -> (float, float):
+    x = -1.0 * mag * math.sin(math.radians(ang))
+    y = -1.0 * mag * math.cos(math.radians(ang))
+
+    return x, y
+
+
+# Combines Components into a Vector
+def Components_To_Vector(x: float, y: float) -> (float, float):
+    ang = 0.0
+    mag = math.sqrt(x * x + y * y)
+
+    if y == 0.0 and x == 0.0:
+        return ang, mag
+
+    if y == 0.0:
+        if x < 0.0:
+            ang = 90.0
+        else:
+            ang = 270.0
+    else:
+        ang = math.degrees(math.atan(x / y))
+        # fix for quadrant
+        if y > 0:
+            ang += 180.0
+        if ang < 0:
+            ang += 360.0
+
+    return ang, mag
+
+
 class Swerve:
 
     def __init__(self, sd, navx):
@@ -39,24 +73,32 @@ class Swerve:
         self.bl = Module(5, cancoder5_absolute_forward, 5, 46, sd)
         self.br = Module(7, cancoder7_absolute_forward, 2, 48, sd)
 
+        self.fl_drive_encoder = self.fl._drive_motor.getEncoder()
+        self.fl_drive_CPR = self.fl_drive_encoder.getCountsPerRevolution()
+
         self.last_fl_ang = 0.0
         self.last_fr_ang = 0.0
         self.last_bl_ang = 0.0
         self.last_br_ang = 0.0
 
+        self.odometry_x = 0.0
+        self.odometry_y = 0.0
+
         self.sd.putString("Swerve", "Ready")
 
     def field_orientate(self, x: float, y: float) -> (float, float):
         # vectorize left joystick
-        ang, mag = self.Components_To_Vector(x, y)
+        ang, mag = Components_To_Vector(x, y)
 
         # compensate for field orientation
         ang = clean_angle(ang + self.navx.getYaw())
 
         # return components
-        return self.Vector_To_Components(ang, mag)
+        return Vector_To_Components(ang, mag)
 
-    def drive(self, x, y, turn, field_orientation = True):
+    def drive(self, x, y, turn, field_orientation=True, report=False):
+
+        self.update_odometry()
 
         # self.sd.putNumber("BotAngle", self.navx.getYaw())
         # self.sd.putNumber("y", y)
@@ -70,14 +112,13 @@ class Swerve:
 
         # turn_size = 0.0
         # if turn < -0.05 or turn > 0.05:  ##Test if dead zone needed
-        turn_size = .707 * turn  ##Get rid of the *sqrt
+        turn_size = .707 * turn
 
-        #
-        fl_ang, fl_mag = self.Components_To_Vector(x + turn_size, y - turn_size)
-        fr_ang, fr_mag = self.Components_To_Vector(x + turn_size, y + turn_size)
-        bl_ang, bl_mag = self.Components_To_Vector(x - turn_size, y - turn_size)
-        br_ang, br_mag = self.Components_To_Vector(x - turn_size, y + turn_size)
-
+        # combine turn and ortho and convert to vector
+        fl_ang, fl_mag = Components_To_Vector(x + turn_size, y - turn_size)
+        fr_ang, fr_mag = Components_To_Vector(x + turn_size, y + turn_size)
+        bl_ang, bl_mag = Components_To_Vector(x - turn_size, y - turn_size)
+        br_ang, br_mag = Components_To_Vector(x - turn_size, y + turn_size)
 
         # Normalize the vectors if needed
         max_mag = max(fl_mag, fr_mag, bl_mag, br_mag)
@@ -106,56 +147,72 @@ class Swerve:
         if bl_mag == 0.0: bl_ang = self.last_fl_ang
         if br_mag == 0.0: br_ang = self.last_fl_ang
 
-
         self.fl.set_module(fl_ang, fl_mag)
         self.fr.set_module(fr_ang, fr_mag)
         self.bl.set_module(bl_ang, bl_mag)
         self.br.set_module(br_ang, br_mag)
+
+        if report:
+            self.sd.putNumber("FL ANG", fl_ang)
+            self.sd.putNumber("FL MAG", fl_mag)
+            self.sd.putNumber("FR ANG", fr_ang)
+            self.sd.putNumber("FR MAG", fr_mag)
+            self.sd.putNumber("BL ANG", bl_ang)
+            self.sd.putNumber("BL MAG", bl_mag)
+            self.sd.putNumber("BR ANG", br_ang)
+            self.sd.putNumber("BR MAG", br_mag)
+
+        self.update_odometry()
 
         self.last_fl_ang = fl_ang
         self.last_fr_ang = fr_ang
         self.last_bl_ang = bl_ang
         self.last_br_ang = br_ang
 
-
     def Report_Encoder_Positions(self):
         self.sd.putNumber("FL Encoder Actual", self.fl.encoder_position)
-        self.sd.putNumber("FL Encoder Modified", self.fl.current_angle)
+        # self.sd.putNumber("FL Encoder Modified", self.fl.current_angle)
         self.sd.putNumber("FR Encoder Actual", self.fr.encoder_position)
-        self.sd.putNumber("FR Encoder Modified", self.fr.current_angle)
+        # self.sd.putNumber("FR Encoder Modified", self.fr.current_angle)
         self.sd.putNumber("BL Encoder Actual", self.bl.encoder_position)
-        self.sd.putNumber("BL Encoder Modified", self.bl.current_angle)
+        # self.sd.putNumber("BL Encoder Modified", self.bl.current_angle)
         self.sd.putNumber("BR Encoder Actual", self.br.encoder_position)
-        self.sd.putNumber("BR Encoder Modified", self.br.current_angle)
+        # self.sd.putNumber("BR Encoder Modified", self.br.current_angle)
 
-    def Vector_To_Components(self, ang, mag):
-        x = -1.0 * mag * math.sin(math.radians(ang))
-        y = -1.0 * mag * math.cos(math.radians(ang))
+    def update_odometry(self):
+        # revolutions of motor (which is count/CPR) * gear ratio * wheel diameter
+        magnitude = self.fl_drive_encoder.getPosition() / self.fl_drive_CPR * 6.75 * 8 * math.pi
+        # Reset Encoder for next tick
+        self.fl_drive_encoder.setPosition(0.0)
+        # Break distance into x,y components
+        x_traveled, y_traveled = Vector_To_Components(self.last_fl_ang, magnitude)
+        # add to odometry_x_y
+        self.odometry_x += x_traveled
+        self.odometry_y += y_traveled
 
-        return x, y
 
-    def Components_To_Vector(self, x, y):
+    def reset_odometry(self):
+        self.odometry_x = 0.0
+        self.odometry_y = 0.0
 
-        ang = 0.0
-        mag = math.sqrt(x * x + y * y)
+        ...
 
-        if y == 0.0 and x == 0.0:
-            return ang, mag
+    def odometry(self) -> (float, float):
+        """
+        Get the distance traveled in x and y since last call to reset_odometry
 
-        if y == 0.0:
-            if x < 0.0:
-                ang = 90.0
-            else:
-                ang = 270.0
-        else:
-            ang = math.degrees(math.atan(x / y))
-            # fix for quadrant
-            if y > 0:
-                ang += 180.0
-            if ang < 0:
-                ang += 360.0
+        :return: The distance traveled in inches (x, y)
+        :rtype: (float, float)
+        """
+        return self.odometry_x, self.odometry_y
 
-        return ang, mag
+    @property
+    def x_travel(self):
+        return self.odometry_x
+
+    @property
+    def y_travel(self):
+        return self.odometry_y
 
 
 class Module:  # sets up each module
@@ -181,9 +238,9 @@ class Module:  # sets up each module
 
         angle_diff = angle - self.current_angle
 
-        if angle_diff < -90.0 or angle_diff > 90:
-            angle = clean_angle(angle)  # removed + 180
-            speed *= -1.0
+        # if angle_diff < -90.0 or angle_diff > 90:
+        # angle = clean_angle(angle)  # removed + 180
+        # speed *= -1.0
 
         turn_speed = self._turn_con.Rot_Velocity(angle, self.current_angle)
 
@@ -191,7 +248,7 @@ class Module:  # sets up each module
         drive_direction = 1.0 if self.drive_flip else -1.0
 
         self._turn_motor.set(turn_speed * turn_direction)
-        self._drive_motor.set(speed * drive_direction * .2)
+        self._drive_motor.set(speed * drive_direction * SPEED_LIMIT)
 
     @property
     def current_angle(self):
