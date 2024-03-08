@@ -54,11 +54,29 @@ class MyRobot(wpilib.TimedRobot):
         self.timer.start()
         self.navx.zeroYaw()
 
+        # remove for comp
+        Climber.zero_encoders()
+
+
         II.intake_speed = self.sd.getNumber("Intake Speed:", .1)
         II.feed_speed = self.sd.getNumber("Feed Speed", .8)
         II.index_state = "intake"
 
         Shooter.shooter_speed = self.sd.getNumber("Shooter Speed:", .1)
+
+        """
+        Shooter PID setup
+        """
+        self.sd.putNumber("Target RPM", 0)
+        self.sd.putNumber("kP", 0)
+        self.sd.putNumber("kI", 0)
+        self.sd.putNumber("kD",0)
+        self.sd.putNumber("maxOut", 1.0)
+        self.sd.putNumber("minOut", -1.0)
+
+
+
+
 
         """
         Pivot PID setup
@@ -87,12 +105,12 @@ class MyRobot(wpilib.TimedRobot):
         # UNSAFE MODE WHEN A IS HELD
         if self.shotgun.getAButton():
             Shooter.unsafe_rotate(self.shotgun.getLeftTriggerAxis() - self.shotgun.getRightTriggerAxis())
+            Climber.unsafe_climb(self.shotgun.getLeftY(),self.shotgun.getRightY())
 
         # NORMAL MODE
         else:
             Shooter.manual_aim(self.shotgun.getLeftTriggerAxis() - self.shotgun.getRightTriggerAxis())
-            # Climber.climb(self.remap_stick(self.shotgun.getLeftY(),0.2), self.remap_stick(self.shotgun.getRightY(), 0.2))
-            Climber.unsafe_climb(self.shotgun.getLeftY(),self.shotgun.getRightY())
+            Climber.climb(self.remap_stick(self.shotgun.getLeftY(),0.2), self.remap_stick(self.shotgun.getRightY(), 0.2))
 
 
 
@@ -174,7 +192,7 @@ class MyRobot(wpilib.TimedRobot):
         if self.timer.hasElapsed(0.5):
             self.sd.putNumber("Pivot position", Shooter.position())
             self.sd.putNumber("Left Climber", Climber.position('L'))
-            self.sd.putNumber("Right Climber", Climber.pos2())
+            self.sd.putNumber("Right Climber", Climber.position('R'))
             self.sd.putNumber("Shooter Speed", Shooter.current_speed())
 
             self.swerve.Report_Encoder_Positions()
