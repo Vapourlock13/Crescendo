@@ -17,6 +17,13 @@ MIN_RETRACT_ENCODER_VALUE = -60_000
 MAX_CLIMBER_SPEED = 1.0
 MAX_UNSAFE_SPEED = 0.2
 
+rpm = 0
+kP = 0
+kI = 0
+kD = 0
+maxOut = 0
+minOut = 0
+
 
 def zero_encoders() -> None:
     # zero the sensor

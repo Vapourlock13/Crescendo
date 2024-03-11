@@ -1,5 +1,12 @@
-class SimplePID:
+def dirty_angle(angle):
+    while angle < -180.0:
+        angle += 360.0
+    while angle > 180.0:
+        angle -= 360.0
+    return angle
 
+
+class SimplePID:
     def __init__ (self,kP: float, kI: float, kD: float, tolerance: float, flip: bool = False) -> None:
         self.kP: float = kP
         self.kI: float = kI
@@ -19,7 +26,7 @@ class SimplePID:
             self.last_error = 0.0
 
         # Find Error
-        error = target - current_position
+        error = dirty_angle(target - current_position)
         self.integral += error * .02
         derivative = (error - self.last_error) / .02
 

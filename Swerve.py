@@ -3,7 +3,9 @@ import ntcore
 import math
 import phoenix5.sensors
 
-SPEED_LIMIT = 0.2
+from SimplePID import SimplePID
+
+
 
 # cancoder Absolute start values
 cancoder1_absolute_forward = 0.0  # 133.4 #313.4 #148.8
@@ -84,6 +86,12 @@ class Swerve:
         self.odometry_x = 0.0
         self.odometry_y = 0.0
 
+        self.facing_PID = SimplePID(.01, 0.0, 0.0, 1.0)
+        self.hold_facing_PID = SimplePID(.01,0.0,0.0,0.1)
+        self.last_facing = 0.0
+        self.MAX_AUTO_TURN_SPEED = 0.5
+        self.SPEED_LIMIT = 1.0
+
         self.sd.putString("Swerve", "Ready")
 
     def field_orientate(self, x: float, y: float) -> (float, float):
@@ -110,8 +118,12 @@ class Swerve:
         if field_orientation:
             x, y = self.field_orientate(x, y)
 
-        # turn_size = 0.0
-        # if turn < -0.05 or turn > 0.05:  ##Test if dead zone needed
+        # if turn == 0:
+            # keep previous facing
+           # turn = self.hold_facing_PID.get_speed(self.last_facing, self.navx.getYaw())
+        #else:
+        #    self.last_facing = self.navx.getYaw()
+
         turn_size = .707 * turn
 
         # combine turn and ortho and convert to vector
@@ -147,10 +159,10 @@ class Swerve:
         if bl_mag == 0.0: bl_ang = self.last_fl_ang
         if br_mag == 0.0: br_ang = self.last_fl_ang
 
-        self.fl.set_module(fl_ang, fl_mag)
-        self.fr.set_module(fr_ang, fr_mag)
-        self.bl.set_module(bl_ang, bl_mag)
-        self.br.set_module(br_ang, br_mag)
+        self.fl.set_module(fl_ang, fl_mag * self.SPEED_LIMIT)
+        self.fr.set_module(fr_ang, fr_mag * self.SPEED_LIMIT)
+        self.bl.set_module(bl_ang, bl_mag * self.SPEED_LIMIT)
+        self.br.set_module(br_ang, br_mag * self.SPEED_LIMIT)
 
         if report:
             self.sd.putNumber("FL ANG", fl_ang)
@@ -179,6 +191,40 @@ class Swerve:
         self.sd.putNumber("BR Encoder Actual", self.br.encoder_position)
         # self.sd.putNumber("BR Encoder Modified", self.br.current_angle)
 
+    def turn_to_face(self,x:float, y:float, angle: float) -> None:
+
+        self.sd.putNumber("angle to hit", angle)
+        self.sd.putNumber("current angle", self.navx.getYaw())
+        turn_speed = self.facing_PID.get_speed(angle, self.navx.getYaw())
+        self.sd.putNumber("turn speed", turn_speed)
+        # limit max turn speed
+        if not turn_speed == 0.0:
+            turn_speed = turn_speed / abs(turn_speed) * min(abs(turn_speed), self.MAX_AUTO_TURN_SPEED)
+
+        self.drive(x,y,turn_speed)
+
+    def aim_at_target(self, x:float, y:float, tag_x:float) -> None:
+        if not -6<tag_x<-4:
+            #direction = tag_x/abs(tag_x)
+            turn_speed = tag_x * 0.01
+            if turn_speed != 0.00:
+                turn_speed = turn_speed / abs(turn_speed) * min(abs(turn_speed), self.MAX_AUTO_TURN_SPEED)
+            #turn_speed = direction * turn_speed
+        else:
+            turn_speed = 0
+        self.drive(x,y,turn_speed)
+
+    def note_aim(self, x:float, y:float, tag_x:float) -> None:
+        if not -3<tag_x<3:
+            #direction = tag_x/abs(tag_x)
+            turn_speed = tag_x * 0.02
+            if turn_speed != 0.00:
+                turn_speed = turn_speed / abs(turn_speed) * min(abs(turn_speed), self.MAX_AUTO_TURN_SPEED)
+            #turn_speed = direction * turn_speed
+        else:
+            turn_speed = 0
+        self.drive(x,y,turn_speed,field_orientation= False)
+
     def update_odometry(self):
         # revolutions of motor (which is count/CPR) * gear ratio * wheel diameter
         magnitude = self.fl_drive_encoder.getPosition() / self.fl_drive_CPR * 6.75 * 8 * math.pi
@@ -189,7 +235,6 @@ class Swerve:
         # add to odometry_x_y
         self.odometry_x += x_traveled
         self.odometry_y += y_traveled
-
 
     def reset_odometry(self):
         self.odometry_x = 0.0
@@ -214,6 +259,13 @@ class Swerve:
     def y_travel(self):
         return self.odometry_y
 
+    @property
+    def speed_limit(self):
+        return self.SPEED_LIMIT
+
+    def set_speed_limit(self, new_limit: float):
+        self.SPEED_LIMIT = new_limit
+
 
 class Module:  # sets up each module
     def __init__(self, encoder_id, abs_forward, drive_id, turn_id, sd, turn_flip=False, drive_flip=False):
@@ -233,8 +285,8 @@ class Module:  # sets up each module
     def set_module(self, angle, speed):
         # self.sd.putNumber("abs encode", self.encoder.getAbsolutePosition() )
 
-        self.sd.putNumber("target", angle)
-        self.sd.putNumber("current", self.current_angle)
+        # self.sd.putNumber("target", angle)
+        # self.sd.putNumber("current", self.current_angle)
 
         angle_diff = angle - self.current_angle
 
@@ -248,7 +300,7 @@ class Module:  # sets up each module
         drive_direction = 1.0 if self.drive_flip else -1.0
 
         self._turn_motor.set(turn_speed * turn_direction)
-        self._drive_motor.set(speed * drive_direction * SPEED_LIMIT)
+        self._drive_motor.set(speed * drive_direction)
 
     @property
     def current_angle(self):
@@ -262,9 +314,9 @@ class Module:  # sets up each module
 class Turn_Controller:
 
     def __init__(self, sd):
-        self._kP = sd.getNumber("kP", .008)
-        self._kI = sd.getNumber("kI", 0.0)
-        self._kD = sd.getNumber("kD", 0.0)
+        self._kP = 0.008 #sd.getNumber("kP", .008)
+        self._kI = 0.0 #sd.getNumber("kI", 0.0)
+        self._kD = 0.0 #sd.getNumber("kD", 0.0)
         self._angle_integral = 0.0
         self._last_angle_error = 0.0
         self.sd = sd
