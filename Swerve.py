@@ -75,8 +75,8 @@ class Swerve:
         self.bl = Module(5, cancoder5_absolute_forward, 5, 46, sd)
         self.br = Module(7, cancoder7_absolute_forward, 2, 48, sd)
 
-        self.fl_drive_encoder = self.fl._drive_motor.getEncoder()
-        self.fl_drive_CPR = self.fl_drive_encoder.getCountsPerRevolution()
+        self.fr_drive_encoder = self.fr._drive_motor.getEncoder()
+        self.fr_drive_CPR = self.fr_drive_encoder.getCountsPerRevolution()
 
         self.last_fl_ang = 0.0
         self.last_fr_ang = 0.0
@@ -118,11 +118,11 @@ class Swerve:
         if field_orientation:
             x, y = self.field_orientate(x, y)
 
-        # if turn == 0:
+        if turn == 0 and math.sqrt(x**2+y**2) > .05:
             # keep previous facing
-           # turn = self.hold_facing_PID.get_speed(self.last_facing, self.navx.getYaw())
-        #else:
-        #    self.last_facing = self.navx.getYaw()
+           turn = self.hold_facing_PID.get_speed(self.last_facing, self.navx.getYaw())
+        else:
+            self.last_facing = self.navx.getYaw()
 
         turn_size = .707 * turn
 
@@ -204,7 +204,7 @@ class Swerve:
         self.drive(x,y,turn_speed)
 
     def aim_at_target(self, x:float, y:float, tag_x:float) -> None:
-        if not -6<tag_x<-4:
+        if not -4<tag_x<-2:
             #direction = tag_x/abs(tag_x)
             turn_speed = tag_x * 0.01
             if turn_speed != 0.00:
@@ -217,7 +217,7 @@ class Swerve:
     def note_aim(self, x:float, y:float, tag_x:float) -> None:
         if not -3<tag_x<3:
             #direction = tag_x/abs(tag_x)
-            turn_speed = tag_x * 0.02
+            turn_speed = tag_x * 0.01
             if turn_speed != 0.00:
                 turn_speed = turn_speed / abs(turn_speed) * min(abs(turn_speed), self.MAX_AUTO_TURN_SPEED)
             #turn_speed = direction * turn_speed
@@ -226,12 +226,11 @@ class Swerve:
         self.drive(x,y,turn_speed,field_orientation= False)
 
     def update_odometry(self):
-        # revolutions of motor (which is count/CPR) * gear ratio * wheel diameter
-        magnitude = self.fl_drive_encoder.getPosition() / self.fl_drive_CPR * 6.75 * 8 * math.pi
-        # Reset Encoder for next tick
-        self.fl_drive_encoder.setPosition(0.0)
+        # revolutions of motor (which is count/CPR) * gear ratio * wheel diameter * fudge
+        magnitude = self.fr_drive_encoder.getPosition() / self.fr_drive_CPR * 6.75 * 8 * math.pi * -60      # Reset Encoder for next tick
+        self.fr_drive_encoder.setPosition(0.0)
         # Break distance into x,y components
-        x_traveled, y_traveled = Vector_To_Components(self.last_fl_ang, magnitude)
+        x_traveled, y_traveled = Vector_To_Components(self.last_fr_ang, magnitude)
         # add to odometry_x_y
         self.odometry_x += x_traveled
         self.odometry_y += y_traveled
@@ -239,6 +238,7 @@ class Swerve:
     def reset_odometry(self):
         self.odometry_x = 0.0
         self.odometry_y = 0.0
+        self.fr_drive_encoder.setPosition(0.0)
 
         ...
 

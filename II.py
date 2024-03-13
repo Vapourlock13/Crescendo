@@ -8,7 +8,7 @@ index_motor = phoenix5.WPI_TalonFX(57)  # may need to be inverted
 index_motor.setInverted(True)
 
 intake_speed = .1
-feed_speed = .1
+feed_speed = .8
 index_state = "intake"  #In real comp: "load"
 
 
@@ -34,8 +34,8 @@ def intake():
             index_state = "locked"
 
     elif index_state == "locked":
-        intake_motor.set(-0.25)
-        index_motor.set(-0.25)
+        intake_motor.set(0)
+        index_motor.set(-0.2)
         if wpilib.DigitalInput(9).get():
             index_state = "loaded"
     else:
@@ -59,6 +59,8 @@ def reload():
     intake_motor.set(0.0)
     index_motor.set(-0.1)
 
+def stop_index():
+    index_motor.set(0.0)
 
 
 """
