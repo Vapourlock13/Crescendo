@@ -90,9 +90,19 @@ class Swerve:
         self.hold_facing_PID = SimplePID(.01,0.0,0.0,0.1)
         self.last_facing = 0.0
         self.MAX_AUTO_TURN_SPEED = 0.5
-        self.SPEED_LIMIT = 1.0
+        self.SPEED_LIMIT = 0.5
 
         self.sd.putString("Swerve", "Ready")
+
+    def set_drive_motors_brake (self, brake = 0) -> None:
+        # 0 = coast, 1 = brake
+        self.fl._drive_motor.IdleMode(brake)
+        self.fr._drive_motor.IdleMode(brake)
+        self.bl._drive_motor.IdleMode(brake)
+        self.br._drive_motor.IdleMode(brake)
+
+
+        # self.fl._drive_motor.s
 
     def field_orientate(self, x: float, y: float) -> (float, float):
         # vectorize left joystick
@@ -118,11 +128,13 @@ class Swerve:
         if field_orientation:
             x, y = self.field_orientate(x, y)
 
-        if turn == 0 and math.sqrt(x**2+y**2) > .05:
-            # keep previous facing
-           turn = self.hold_facing_PID.get_speed(self.last_facing, self.navx.getYaw())
-        else:
-            self.last_facing = self.navx.getYaw()
+        #Keep Facing Code
+        # if turn == 0 and math.sqrt(x**2+y**2) > .05:
+        #     # keep previous facing
+        #    turn = self.hold_facing_PID.get_speed(self.last_facing, self.navx.getYaw())
+        # else:
+        #     self.last_facing = self.navx.getYaw()
+        self.last_facing = self.navx.getYaw() #Remove if using the statements above
 
         turn_size = .707 * turn
 
@@ -194,7 +206,7 @@ class Swerve:
     def turn_to_face(self,x:float, y:float, angle: float) -> None:
 
         self.sd.putNumber("angle to hit", angle)
-        self.sd.putNumber("current angle", self.navx.getYaw())
+        #self.sd.putNumber("current angle", self.navx.getYaw())
         turn_speed = self.facing_PID.get_speed(angle, self.navx.getYaw())
         self.sd.putNumber("turn speed", turn_speed)
         # limit max turn speed
@@ -204,18 +216,20 @@ class Swerve:
         self.drive(x,y,turn_speed)
 
     def aim_at_target(self, x:float, y:float, tag_x:float) -> None:
-        if not -4<tag_x<-2:
-            #direction = tag_x/abs(tag_x)
-            turn_speed = tag_x * 0.01
+        target = 8
+
+        if not target - 1 < tag_x < target + 1:
+            turn_speed = (tag_x - target) * 0.01
             if turn_speed != 0.00:
                 turn_speed = turn_speed / abs(turn_speed) * min(abs(turn_speed), self.MAX_AUTO_TURN_SPEED)
-            #turn_speed = direction * turn_speed
+
         else:
             turn_speed = 0
+
         self.drive(x,y,turn_speed)
 
     def note_aim(self, x:float, y:float, tag_x:float) -> None:
-        if not -3<tag_x<3:
+        if not -2<tag_x<2:
             #direction = tag_x/abs(tag_x)
             turn_speed = tag_x * 0.01
             if turn_speed != 0.00:
@@ -281,6 +295,7 @@ class Module:  # sets up each module
         self._drive_motor = rev.CANSparkFlex(self._drive_id, rev.CANSparkFlex.MotorType.kBrushless)
         self._turn_motor = rev.CANSparkMax(self._turn_id, rev.CANSparkMax.MotorType.kBrushless)
         self._turn_con = Turn_Controller(sd)
+        #self._drive_motor.setIdleMode() #BRAKE MODE
 
     def set_module(self, angle, speed):
         # self.sd.putNumber("abs encode", self.encoder.getAbsolutePosition() )
