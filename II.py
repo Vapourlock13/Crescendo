@@ -3,12 +3,12 @@ import rev
 import phoenix5
 
 intake_motor = rev.CANSparkMax(43, rev.CANSparkMax.MotorType.kBrushless)
-intake_motor.setInverted(True)
+#intake_motor.setInverted(True)
 index_motor = phoenix5.WPI_TalonFX(57)  # may need to be inverted
-index_motor.setInverted(True)
+#index_motor.setInverted(True)
 
-intake_speed = .45
-feed_speed = .8
+intake_speed = -0.4
+feed_speed = -0.8
 index_state = "intake"  #In real comp: "load"
 
 
@@ -35,7 +35,7 @@ def intake():
 
     elif index_state == "locked":
         intake_motor.set(0)
-        index_motor.set(-0.15)
+        index_motor.set(0.15)
         if wpilib.DigitalInput(9).get():
             index_state = "loaded"
     else:
@@ -60,7 +60,7 @@ def stop():
 
 def reload():
     intake_motor.set(0.0)
-    index_motor.set(-0.1)
+    index_motor.set(0.1)
 
 def stop_index():
     index_motor.set(0.0)

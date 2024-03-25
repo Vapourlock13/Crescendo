@@ -72,7 +72,7 @@ class Swerve:
 
         self.fl = Module(3, cancoder3_absolute_forward, 3, 44, sd, drive_flip=True, turn_flip=True)  # Reversed motors
         self.fr = Module(1, cancoder1_absolute_forward, 1, 42, sd, turn_flip=True)  # Reversed turning motor
-        self.bl = Module(5, cancoder5_absolute_forward, 5, 46, sd)
+        self.bl = Module(5, cancoder5_absolute_forward, 5, 47, sd) # Previously turn_id 46
         self.br = Module(7, cancoder7_absolute_forward, 2, 48, sd)
 
         self.fr_drive_encoder = self.fr._drive_motor.getEncoder()
@@ -90,9 +90,9 @@ class Swerve:
         self.hold_facing_PID = SimplePID(.01,0.0,0.0,0.1)
         self.last_facing = 0.0
         self.MAX_AUTO_TURN_SPEED = 0.5
-        self.SPEED_LIMIT = 0.5
+        self.SPEED_LIMIT = 1.0
 
-        self.sd.putString("Swerve", "Ready")
+        #self.sd.putString("Swerve", "Ready")
 
     def set_drive_motors_brake (self, brake = 0) -> None:
         # 0 = coast, 1 = brake
@@ -217,6 +217,18 @@ class Swerve:
 
     def aim_at_target(self, x:float, y:float, tag_x:float) -> None:
         target = 8
+
+        if not target - 1 < tag_x < target + 1:
+            turn_speed = (tag_x - target) * 0.01
+            if turn_speed != 0.00:
+                turn_speed = turn_speed / abs(turn_speed) * min(abs(turn_speed), self.MAX_AUTO_TURN_SPEED)
+
+        else:
+            turn_speed = 0
+
+        self.drive(x,y,turn_speed)
+
+    def aim_at_target_tele(self, x:float, y:float, tag_x:float, target) -> None:
 
         if not target - 1 < tag_x < target + 1:
             turn_speed = (tag_x - target) * 0.01

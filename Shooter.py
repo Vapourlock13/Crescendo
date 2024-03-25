@@ -27,7 +27,9 @@ bottom_shooter = rev.CANSparkFlex(4, rev.CANSparkFlex.MotorType.kBrushless)
 bottom_encoder = bottom_shooter.getEncoder()
 
 top_shooter = rev.CANSparkFlex(6, rev.CANSparkFlex.MotorType.kBrushless)
-top_shooter.setInverted(True)
+
+#top_shooter.setInverted(True) #FIXING INVERTED
+
 # top_PID = top_shooter.getPIDController()
 top_encoder = top_shooter.getEncoder()
 
@@ -80,6 +82,13 @@ def stop_pivot():
 
 
 def set_angle(angle: float) -> float:
+
+    if wpilib.DigitalInput(0).get():
+        stop_pivot()
+
+    if angle < 0.0 or angle > 135.0:
+        stop_pivot()
+
     speed = pivot_PID.get_speed(angle, position())
     if not speed == 0.0:
         speed = speed / abs(speed) * min(abs(speed), auto_max_pivot_speed)
@@ -89,6 +98,9 @@ def set_angle(angle: float) -> float:
 
     #if position() < 30.0 or position() > 105.0: #Max and Min
         #speed = 0.0
+
+    if (speed > 0.0 and position() > 130.0) or (speed < 0.0 and position() < 0.0):
+        stop_pivot()
 
     left_pivot_motor.set(speed)
     right_pivot_motor.set(speed)
@@ -153,7 +165,7 @@ def set_rpm(rpm: int) -> float:
 
     top_speed = base_speed + top_error * shooter_kP + top_integral * shooter_kI
     bottom_speed = base_speed + bottom_error * shooter_kP + bottom_integral * shooter_kI
-    top_shooter.set(top_speed)
+    top_shooter.set(-1.0 * top_speed)
     bottom_shooter.set(bottom_speed)
 
     return bottom_speed
